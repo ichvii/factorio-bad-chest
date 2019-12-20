@@ -1,7 +1,7 @@
 data:extend({
     {
         type = "string-setting",
-        name = "anchor-point-of-deconstruction-rectangle",
+        name = "anchor-point-of-area-rectangle",
         setting_type = "runtime-global",
         default_value = "floored-centre",
         allowed_values={"floored-centre","upper-left","lower-left","upper-right","lower-right"}
