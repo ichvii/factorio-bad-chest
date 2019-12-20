@@ -9,7 +9,7 @@ data:extend({
     {
         type = "int-setting",
         minimum_value=0,
-        name = "order-delay",
+        name = "order_delay",
         setting_type = "startup",
         default_value = 0
     }    
