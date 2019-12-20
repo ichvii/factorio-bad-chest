@@ -8,6 +8,8 @@ local X_SIGNAL = {name="signal-X", type="virtual"}
 local Y_SIGNAL = {name="signal-Y", type="virtual"}
 local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
 
+local COMMAND_SIGNALS= { DEPLOY_SIGNAL, DECONSTUCT_SIGNAL, COPY_SIGNAL, WIDTH_SIGNAL, HEIGHT_SIGNAL, X_SIGNAL, Y_SIGNAL, ROTATE_SIGNAL}
+
 function on_init()
   global.deployers = {}
   on_mods_changed()
@@ -15,7 +17,6 @@ end
 
 function on_mods_changed()
   if not global.deployers then global.deployers = {} end
-  global.net_cache = {}
 
   -- Construction robotics unlocks deployer chest
   for _,force in pairs(game.forces) do
@@ -40,7 +41,7 @@ function on_built(event)
   local entity = event.created_entity or event.entity or event.destination
   if not entity or not entity.valid then return end
   if entity.name == "blueprint-deployer" then
-    table.insert(global.deployers, entity)
+    table.insert(global.deployers, {entity= entity, waiting_list ={}})
   end
 end
 
@@ -48,42 +49,44 @@ function on_destroyed(event)
   local entity = event.entity
   if not entity or not entity.valid then return end
   if entity.name == "blueprint-deployer" then
-    global.net_cache[entity.unit_number] = nil
   end
 end
 
 function on_tick(event)
+  local delay = settings.startup.order_delay
   for key, deployer in pairs(global.deployers) do
-    if deployer.valid then
-      on_tick_deployer(deployer)
+    if deployer.entity.valid then
+      deployer.waiting_list[event.tick]= get_signals_filtered(COMMAND_SIGNALS,deployer.entity.get_merged_signals())
+      on_tick_deployer(deployer.entity, deployer.waiting_list[event.tick-delay])
+      deployer.waiting_list[event.tick-delay]= nil
     else
       global.deployers[key] = nil
     end
   end
 end
 
-function on_tick_deployer(deployer)
+function on_tick_deployer(deployer,signals)
   local bp = nil
-  local deploy = get_signal(deployer, DEPLOY_SIGNAL)
+  local deploy = get_signal_from_set(signals, DEPLOY_SIGNAL)
   if deploy > 0 then
     bp = deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
     if bp.is_blueprint then
       -- Deploy blueprint
-      deploy_blueprint(bp, deployer)
+      deploy_blueprint(bp, deployer,signals)
     elseif bp.is_blueprint_book then
       -- Deploy blueprint from book
       local inventory = bp.get_inventory(defines.inventory.item_main)
       if deploy > inventory.get_item_count() then
         deploy = bp.active_index
       end
-      deploy_blueprint(inventory[deploy], deployer)
+      deploy_blueprint(inventory[deploy], deployer,signals)
     elseif bp.is_deconstruction_item then
       -- Deconstruct area
-      deconstruct_area(bp, deployer, true)
+      deconstruct_area(bp, deployer,signals, true)
     elseif bp.is_upgrade_item then
       -- Upgrade area
-      upgrade_area(bp, deployer, true)
+      upgrade_area(bp, deployer, signals, true)
     end
     return
   end
@@ -93,18 +96,18 @@ function on_tick_deployer(deployer)
     if not bp.valid_for_read then return end
     if bp.is_deconstruction_item then
       -- Cancel deconstruction in area
-      deconstruct_area(bp, deployer, false)
+      deconstruct_area(bp, deployer, signals, false)
     elseif bp.is_upgrade_item then
       -- Cancel upgrade upgrade in area
-      upgrade_area(bp, deployer, false)
+      upgrade_area(bp, deployer, signals, false)
     end
     return
   end
 
-  local deconstruct = get_signal(deployer, DECONSTRUCT_SIGNAL)
+  local deconstruct = get_signal_from_set(signals, DECONSTRUCT_SIGNAL)
   if deconstruct == -1 then
     -- Deconstruct area
-    deconstruct_area(bp, deployer, true)
+    deconstruct_area(bp, deployer,signals, true)
     return
   elseif deconstruct == -2 then
     -- Deconstruct Self
@@ -112,14 +115,14 @@ function on_tick_deployer(deployer)
     return
   elseif deconstruct == -3 then
     -- Cancel deconstruction in area
-    deconstruct_area(bp, deployer, false)
+    deconstruct_area(bp, deployer, signals, false)
     return
   end
 
-  local copy = get_signal(deployer, COPY_SIGNAL)
+  local copy = get_signal_from_set(signals, COPY_SIGNAL)
   if copy == 1 then
     -- Copy blueprint
-    copy_blueprint(deployer)
+    copy_blueprint(deployer,signals)
     return
   elseif copy == -1 then
     -- Delete blueprint
@@ -135,7 +138,7 @@ function on_tick_deployer(deployer)
   end
 end
 
-function deploy_blueprint(bp, deployer)
+function deploy_blueprint(bp, deployer,signals)
   if not bp then return end
   if not bp.valid_for_read then return end
   if not bp.is_blueprint_setup() then return end
@@ -160,7 +163,7 @@ function deploy_blueprint(bp, deployer)
   end
 
   -- Rotate
-  local rotation = get_signal(deployer, ROTATE_SIGNAL)
+  local rotation = get_signal_from_set(signals, ROTATE_SIGNAL)
   local direction = defines.direction.north
   if (rotation == 1) then
     direction = defines.direction.east
@@ -174,8 +177,8 @@ function deploy_blueprint(bp, deployer)
   end
 
   local position = {
-    x = deployer.position.x - anchorX + get_signal(deployer, X_SIGNAL),
-    y = deployer.position.y - anchorY + get_signal(deployer, Y_SIGNAL),
+    x = deployer.position.x - anchorX + get_signal_from_set(signals, X_SIGNAL),
+    y = deployer.position.y - anchorY + get_signal_from_set(signals, Y_SIGNAL),
   }
 
   -- Check for building out of bounds
@@ -202,8 +205,8 @@ function deploy_blueprint(bp, deployer)
   end
 end
 
-function deconstruct_area(bp, deployer, deconstruct)
-  local area = get_area(deployer)
+function deconstruct_area(bp, deployer,signals, deconstruct)
+  local area = get_area(deployer,signals)
   if deconstruct == false then
     -- Cancel Area
     deployer.surface.cancel_deconstruct_area{
@@ -228,8 +231,8 @@ function deconstruct_area(bp, deployer, deconstruct)
   end
 end
 
-function upgrade_area(bp, deployer, upgrade)
-  local area = get_area(deployer)
+function upgrade_area(bp, deployer,signals, upgrade)
+  local area = get_area(deployer,signals)
   if upgrade == false then
     -- Cancel area
     deployer.surface.cancel_upgrade_area{
@@ -249,12 +252,12 @@ function upgrade_area(bp, deployer, upgrade)
   end
 end
 
-function get_area(deployer)
+function get_area(deployer,signals)
   local anchor_point=settings.startup["anchor-point-of-area-rectangle"].value
-  local X = get_signal(deployer, X_SIGNAL)
-  local Y = get_signal(deployer, Y_SIGNAL)
-  local W = get_signal(deployer, WIDTH_SIGNAL)
-  local H = get_signal(deployer, HEIGHT_SIGNAL)
+  local X = get_signal_from_set(signals, X_SIGNAL)
+  local Y = get_signal_from_set(signals, Y_SIGNAL)
+  local W = get_signal_from_set(signals, WIDTH_SIGNAL)
+  local H = get_signal_from_set(signals, HEIGHT_SIGNAL)
 
   if W < 1 then W = 1 end
   if H < 1 then H = 1 end
@@ -284,12 +287,12 @@ function get_area(deployer)
   }
 end
 
-function copy_blueprint(deployer)
+function copy_blueprint(deployer,signals)
   local inventory = deployer.get_inventory(defines.inventory.chest)
   if not inventory.is_empty() then return end
   for _,signal in pairs(global.blueprint_signals) do
     -- Check for a signal before doing an expensive search
-    if get_signal(deployer, signal) >= 1 then
+    if get_signal_from_set(signals, signal) >= 1 then
       -- Signal exists, now we have to search for the blueprint
       local stack = find_stack_in_network(deployer, signal.name)
       if stack then
@@ -371,41 +374,41 @@ function find_stack_in_container(entity, item_name)
   end
 end
 
--- Return integer value for given Signal: {type=, name=}
-function get_signal(entity, signal)
-  -- Cache the circuit networks to speed up performance
-  local cache = global.net_cache[entity.unit_number]
-  if not cache then
-    cache = {last_update = -1}
-    global.net_cache[entity.unit_number] = cache
-  end
-  -- Try to reload empty networks once per tick
-  -- Never reload valid networks
-  if cache.last_update < game.tick then
-    if not cache.red_network or not cache.red_network.valid then
-      cache.red_network = entity.get_circuit_network(defines.wire_type.red)
-    end
-    if not cache.green_network or not cache.green_network.valid then
-      cache.green_network = entity.get_circuit_network(defines.wire_type.green)
-    end
-    cache.last_update = game.tick
-  end
 
-  -- Get the signal
-  local value = 0
-  if cache.red_network then
-    value = value + cache.red_network.get_signal(signal)
-  end
-  if cache.green_network then
-    value = value + cache.green_network.get_signal(signal)
-  end
 
-  -- Mimic circuit network integer overflow
-  if value > 2147483647 then value = value - 4294967296 end
-  if value < -2147483648 then value = value + 4294967296 end
-  return value;
+--from justarandomgeeks conman
+  
+  function get_signal_from_set(signal,set)
+  for _,sig in pairs(set) do
+    if sig.signal.type == signal.type and sig.signal.name == signal.name then
+      return sig.count
+    end
+  end
+  return 0
 end
 
+function get_signals_filtered(filters,signals)
+  --   filters = {
+  --  SignalID,
+  --  }
+  local results = {}
+  local count = 0
+  for _,sig in pairs(signals) do
+    for i,f in pairs(filters) do
+      if f.name and sig.signal.type == f.type and sig.signal.name == f.name then
+        results[i] = sig.count
+        count = count + 1
+        if count == #filters then return results end
+      end
+    end
+  end
+  return results
+end
+  
+  
+  
+  
+  
 
 script.on_init(on_init)
 script.on_configuration_changed(on_mods_changed)
