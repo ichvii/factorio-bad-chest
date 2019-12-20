@@ -250,6 +250,7 @@ function upgrade_area(bp, deployer, upgrade)
 end
 
 function get_area(deployer)
+  local anchor_point=settings.startup["anchor-point-of-area-rectangle"].value
   local X = get_signal(deployer, X_SIGNAL)
   local Y = get_signal(deployer, Y_SIGNAL)
   local W = get_signal(deployer, WIDTH_SIGNAL)
@@ -259,16 +260,27 @@ function get_area(deployer)
   if H < 1 then H = 1 end
 
   -- Align to grid
-  if W % 2 == 0 then X = X + 0.5 end
-  if H % 2 == 0 then Y = Y + 0.5 end
-
+  if anchor_point == "floored-centre" then
+    if W % 2 == 0 then X = X + 0.5 end
+    if H % 2 == 0 then Y = Y + 0.5 end
+    X=X-(W/2)
+    Y=Y-(H/2)
+  end
+  
+  if anchor_point=="lower-right" or anchor_point == "lower-left" then
+    Y=Y-H
+  end
+  if anchor_point == "lower-right" or anchor_point== "upper-right" then
+    X=X-W
+  end
+    
   -- Subtract 1 pixel from edges to avoid tile overlap
   W = W - 1/128
   H = H - 1/128
 
   return {
-    {deployer.position.x+X-(W/2), deployer.position.y+Y-(H/2)},
-    {deployer.position.x+X+(W/2), deployer.position.y+Y+(H/2)},
+    {deployer.position.x+X, deployer.position.y+Y},
+    {deployer.position.x+X+W, deployer.position.y+Y+H},
   }
 end
 
