@@ -56,8 +56,8 @@ function on_tick(event)
   local delay = settings.startup.order_delay.value
   for key, deployer in pairs(global.deployers) do
     if deployer.entity.valid then
-      deployer.waiting_list[event.tick]= get_signals_filtered(COMMAND_SIGNALS,deployer.entity.get_merged_signals() or {})
-      on_tick_deployer(deployer.entity, deployer.waiting_list[event.tick-delay] or {})
+      deployer.waiting_list[event.tick]= deployer.entity.get_merged_signals() or {}
+      on_tick_deployer(deployer.entity, deployer.waiting_list[event.tick - delay] or {})
       deployer.waiting_list[event.tick-delay]= nil
     else
       global.deployers[key] = nil
@@ -385,24 +385,6 @@ end
     end
   end
   return 0
-end
-
-function get_signals_filtered(filters,signals)
-  --   filters = {
-  --  SignalID,
-  --  }
-  local results = {}
-  local count = 0
-  for _,sig in pairs(signals) do
-    for i,f in pairs(filters) do
-      if f.name and sig.signal.type == f.type and sig.signal.name == f.name then
-        results[i] = sig.count
-        count = count + 1
-        if count == #filters then return results end
-      end
-    end
-  end
-  return results
 end
   
   
