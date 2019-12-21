@@ -56,7 +56,7 @@ function on_tick(event)
   local delay = settings.startup.order_delay
   for key, deployer in pairs(global.deployers) do
     if deployer.entity.valid then
-      deployer.waiting_list[event.tick]= get_signals_filtered(COMMAND_SIGNALS,deployer.entity.get_merged_signals())
+      deployer.waiting_list[event.tick]= get_signals_filtered(COMMAND_SIGNALS,deployer.entity.get_merged_signals() or {})
       on_tick_deployer(deployer.entity, deployer.waiting_list[event.tick-delay])
       deployer.waiting_list[event.tick-delay]= nil
     else
