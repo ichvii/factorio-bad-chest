@@ -53,7 +53,7 @@ function on_destroyed(event)
 end
 
 function on_tick(event)
-  local delay = settings.startup.order_delay
+  local delay = settings.startup.order_delay.value
   for key, deployer in pairs(global.deployers) do
     if deployer.entity.valid then
       deployer.waiting_list[event.tick]= get_signals_filtered(COMMAND_SIGNALS,deployer.entity.get_merged_signals() or {})
