@@ -253,7 +253,7 @@ function upgrade_area(bp, deployer,signals, upgrade)
 end
 
 function get_area(deployer,signals)
-  local anchor_point=settings.startup["anchor-point-of-area-rectangle"].value
+  local anchor_point=settings.global["anchor-point-of-area-rectangle"].value
   local X = get_signal_from_set(X_SIGNAL, signals)
   local Y = get_signal_from_set(Y_SIGNAL, signals)
   local W = get_signal_from_set(WIDTH_SIGNAL, signals)
