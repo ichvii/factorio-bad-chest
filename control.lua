@@ -67,7 +67,7 @@ end
 
 function on_tick_deployer(deployer,signals)
   local bp = nil
-  local deploy = get_signal_from_set(signals, DEPLOY_SIGNAL)
+  local deploy = get_signal_from_set(DEPLOY_SIGNAL, signals)
   if deploy > 0 then
     bp = deployer.get_inventory(defines.inventory.chest)[1]
     if not bp.valid_for_read then return end
@@ -104,7 +104,7 @@ function on_tick_deployer(deployer,signals)
     return
   end
 
-  local deconstruct = get_signal_from_set(signals, DECONSTRUCT_SIGNAL)
+  local deconstruct = get_signal_from_set( DECONSTRUCT_SIGNAL, signals)
   if deconstruct == -1 then
     -- Deconstruct area
     deconstruct_area(bp, deployer,signals, true)
@@ -119,7 +119,7 @@ function on_tick_deployer(deployer,signals)
     return
   end
 
-  local copy = get_signal_from_set(signals, COPY_SIGNAL)
+  local copy = get_signal_from_set( COPY_SIGNAL, signals)
   if copy == 1 then
     -- Copy blueprint
     copy_blueprint(deployer,signals)
@@ -163,7 +163,7 @@ function deploy_blueprint(bp, deployer,signals)
   end
 
   -- Rotate
-  local rotation = get_signal_from_set(signals, ROTATE_SIGNAL)
+  local rotation = get_signal_from_set(ROTATE_SIGNAL, signals)
   local direction = defines.direction.north
   if (rotation == 1) then
     direction = defines.direction.east
@@ -177,8 +177,8 @@ function deploy_blueprint(bp, deployer,signals)
   end
 
   local position = {
-    x = deployer.position.x - anchorX + get_signal_from_set(signals, X_SIGNAL),
-    y = deployer.position.y - anchorY + get_signal_from_set(signals, Y_SIGNAL),
+    x = deployer.position.x - anchorX + get_signal_from_set(X_SIGNAL, signals),
+    y = deployer.position.y - anchorY + get_signal_from_set(Y_SIGNAL, signals),
   }
 
   -- Check for building out of bounds
@@ -254,10 +254,10 @@ end
 
 function get_area(deployer,signals)
   local anchor_point=settings.startup["anchor-point-of-area-rectangle"].value
-  local X = get_signal_from_set(signals, X_SIGNAL)
-  local Y = get_signal_from_set(signals, Y_SIGNAL)
-  local W = get_signal_from_set(signals, WIDTH_SIGNAL)
-  local H = get_signal_from_set(signals, HEIGHT_SIGNAL)
+  local X = get_signal_from_set(X_SIGNAL, signals)
+  local Y = get_signal_from_set(Y_SIGNAL, signals)
+  local W = get_signal_from_set(WIDTH_SIGNAL, signals)
+  local H = get_signal_from_set(HEIGHT_SIGNAL, signals)
 
   if W < 1 then W = 1 end
   if H < 1 then H = 1 end
@@ -292,7 +292,7 @@ function copy_blueprint(deployer,signals)
   if not inventory.is_empty() then return end
   for _,signal in pairs(global.blueprint_signals) do
     -- Check for a signal before doing an expensive search
-    if get_signal_from_set(signals, signal) >= 1 then
+    if get_signal_from_set(signal, signals) >= 1 then
       -- Signal exists, now we have to search for the blueprint
       local stack = find_stack_in_network(deployer, signal.name)
       if stack then
