@@ -43,7 +43,7 @@ function on_mods_changed()
     for key, deployer in pairs(global.deployers_new) do
       if deployer.waiting_list and #(deployer.waiting_list) > new_delay then
         if not tick42 then
-          for i, _ in pairs deployer.waiting_list do
+          for i, _ in pairs(deployer.waiting_list) do
             if tick42 then
               if tick42<i then
                 tick42= i
