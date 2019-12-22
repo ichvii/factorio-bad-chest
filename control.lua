@@ -16,7 +16,7 @@ function on_init()
 end
 
 function on_mods_changed()
-  if global.deployers then global.deployers = nil
+  if global.deployers then global.deployers = nil end
   if not global.deployers_new then global.deployers_new = {} end
 
   -- Construction robotics unlocks deployer chest
