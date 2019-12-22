@@ -8,15 +8,16 @@ local X_SIGNAL = {name="signal-X", type="virtual"}
 local Y_SIGNAL = {name="signal-Y", type="virtual"}
 local ROTATE_SIGNAL = {name="signal-R", type="virtual"}
 
-local COMMAND_SIGNALS= { DEPLOY_SIGNAL, DECONSTUCT_SIGNAL, COPY_SIGNAL, WIDTH_SIGNAL, HEIGHT_SIGNAL, X_SIGNAL, Y_SIGNAL, ROTATE_SIGNAL}
+-- local COMMAND_SIGNALS= { DEPLOY_SIGNAL, DECONSTUCT_SIGNAL, COPY_SIGNAL, WIDTH_SIGNAL, HEIGHT_SIGNAL, X_SIGNAL, Y_SIGNAL, ROTATE_SIGNAL}
 
 function on_init()
-  global.deployers = {}
+  global.deployers_new = {}
   on_mods_changed()
 end
 
 function on_mods_changed()
-  if not global.deployers then global.deployers = {} end
+  if global.deployers then global.deployers = nil
+  if not global.deployers_new then global.deployers_new = {} end
 
   -- Construction robotics unlocks deployer chest
   for _,force in pairs(game.forces) do
@@ -35,13 +36,37 @@ function on_mods_changed()
       table.insert(global.blueprint_signals, {name=item.name, type="item"})
     end
   end
+  
+  local new_delay= settings.startup.order_delay.value
+  if global.old_delay and global.old_delay > new_delay then
+    local tick42
+    for key, deployer in pairs global.deployers_new do
+      if deployer.waiting_list and #deployer.waiting_list > new_delay then
+        if not tick42 then
+          for i, _ in pairs deployer.waiting_list do
+            if tick42 then
+              if tick42<i then
+                tick42= i
+              end
+            else
+              tick42=i
+            end
+          end
+        end
+        for i = tick42- global.old_delay+1 , tick42 - new_delay do
+          deployer.waiting_list[i]=nil
+        end
+      end     
+    end
+  end        
+  global.old_delay= new_delay
 end
 
 function on_built(event)
   local entity = event.created_entity or event.entity or event.destination
   if not entity or not entity.valid then return end
   if entity.name == "blueprint-deployer" then
-    table.insert(global.deployers, {entity= entity, waiting_list ={}})
+    table.insert(global.deployers_new, {entity= entity, waiting_list ={}})
   end
 end
 
@@ -53,14 +78,14 @@ function on_destroyed(event)
 end
 
 function on_tick(event)
-  local delay = settings.startup.order_delay.value
-  for key, deployer in pairs(global.deployers) do
+  local delay = global.old_delay
+  for key, deployer in pairs(global.deployers_new) do
     if deployer.entity.valid then
       deployer.waiting_list[event.tick]= deployer.entity.get_merged_signals() or {}
       on_tick_deployer(deployer.entity, deployer.waiting_list[event.tick - delay] or {})
       deployer.waiting_list[event.tick-delay]= nil
     else
-      global.deployers[key] = nil
+      global.deployers_new[key] = nil
     end
   end
 end
