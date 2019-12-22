@@ -40,8 +40,8 @@ function on_mods_changed()
   local new_delay= settings.startup.order_delay.value
   if global.old_delay and global.old_delay > new_delay then
     local tick42
-    for key, deployer in pairs global.deployers_new do
-      if deployer.waiting_list and #deployer.waiting_list > new_delay then
+    for key, deployer in pairs(global.deployers_new) do
+      if deployer.waiting_list and #(deployer.waiting_list) > new_delay then
         if not tick42 then
           for i, _ in pairs deployer.waiting_list do
             if tick42 then
